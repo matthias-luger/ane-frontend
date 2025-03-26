@@ -8,8 +8,14 @@ import { Input } from './ui/input'
 import { useState } from 'react'
 import { RadioGroup, RadioGroupItem } from './ui/radio-group'
 
+enum NotificationMethod {
+    Email = 'email',
+    Push = 'push',
+    Discord = 'discord'
+}
+
 export default function Notifications() {
-    const [notificationMethod, setNotificationMethod] = useState('email')
+    const [notificationMethod, setNotificationMethod] = useState<NotificationMethod>(NotificationMethod.Push)
     return (
         <Card className="mb-6 border-border bg-card text-card-foreground">
             <CardHeader>
@@ -20,25 +26,27 @@ export default function Notifications() {
                 <RadioGroup
                     defaultValue="email"
                     value={notificationMethod}
-                    onValueChange={setNotificationMethod}
+                    onValueChange={value => {
+                        setNotificationMethod(value as NotificationMethod)
+                    }}
                     className="flex flex-col space-y-2 md:flex-row md:space-y-0 md:space-x-4"
                 >
                     <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="email" id="email" />
-                        <Label htmlFor="email" className="flex items-center gap-2 cursor-pointer">
-                            <Mail className="h-4 w-4" />
-                            Email
-                        </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="push" id="push" />
+                        <RadioGroupItem value={NotificationMethod.Push} id="push" />
                         <Label htmlFor="push" className="flex items-center gap-2 cursor-pointer">
                             <Bell className="h-4 w-4" />
                             On this device
                         </Label>
                     </div>
                     <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="discord" id="discord" />
+                        <RadioGroupItem value={NotificationMethod.Email} id="email" />
+                        <Label htmlFor="email" className="flex items-center gap-2 cursor-pointer">
+                            <Mail className="h-4 w-4" />
+                            Email
+                        </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <RadioGroupItem value={NotificationMethod.Discord} id="discord" />
                         <Label htmlFor="discord" className="flex items-center gap-2 cursor-pointer">
                             <MessageSquare className="h-4 w-4" />
                             Discord
@@ -46,14 +54,14 @@ export default function Notifications() {
                     </div>
                 </RadioGroup>
 
-                {notificationMethod === 'email' && (
+                {notificationMethod === NotificationMethod.Email && (
                     <div className="mt-4">
                         <Label htmlFor="email-address">Email Address</Label>
                         <Input id="email-address" placeholder="your@email.com" className="mt-1 bg-background" />
                     </div>
                 )}
 
-                {notificationMethod === 'discord' && (
+                {notificationMethod === NotificationMethod.Discord && (
                     <div className="mt-4">
                         <Label htmlFor="discord-webhook">Discord Webhook URL</Label>
                         <Input id="discord-webhook" placeholder="https://discord.com/api/webhooks/..." className="mt-1 bg-background" />

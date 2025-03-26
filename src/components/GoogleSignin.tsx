@@ -26,7 +26,7 @@ export default function GoogleSignin() {
     }
 
     return (
-        <Button variant="ghost" size="icon" onClick={handleGoogleSignIn} className="relative h-8 w-8 rounded-full" aria-label="Sign in">
+        <Button variant="ghost" size="icon" onClick={handleGoogleSignIn} className="relative h-8 w-8 rounded-full cursor-pointer" aria-label="Sign in">
             <User className="h-5 w-5" />
         </Button>
     )

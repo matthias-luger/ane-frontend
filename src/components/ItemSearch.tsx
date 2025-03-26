@@ -1,66 +1,53 @@
 'use client'
 
-import { Slider } from './ui/slider'
-import { Search, Filter, ChevronDown, X } from 'lucide-react'
+import { Search, Filter, X } from 'lucide-react'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/card'
 import { DialogHeader, DialogFooter, Dialog, DialogTrigger, DialogContent, DialogTitle, DialogDescription } from './ui/dialog'
 import { Input } from './ui/input'
-import { useState } from 'react'
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuPortal,
-    DropdownMenuSeparator,
-    DropdownMenuSub,
-    DropdownMenuSubContent,
-    DropdownMenuSubTrigger,
-    DropdownMenuTrigger
-} from './ui/dropdown-menu'
+import { useEffect, useState } from 'react'
 import { SelectItem, Select, SelectTrigger, SelectValue, SelectContent } from './ui/select'
 import { Label } from './ui/label'
+import { Configuration, FilterApi, FilterOptions } from '@/_generated/api'
+import { FilterElement, getFilterElementDefaultValue, getFilterElementValueForDisplay } from './filters/FilterElement'
 
 export default function ItemSearch() {
     const [searchQuery, setSearchQuery] = useState('')
-    const [priceRange, setPriceRange] = useState([0, 1000])
     const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false)
-    const [currentFilterCategory, setCurrentFilterCategory] = useState('')
-    const [currentFilterValue, setCurrentFilterValue] = useState('')
-    const [appliedFilters, setAppliedFilters] = useState<{ category: string; value: string }[]>([])
+    const [currentFilterToAdd, setCurrentFilterToAdd] = useState<{ key: string; options: FilterOptions; value: any }>()
+    const [filterOptions, setFilterOptions] = useState<{ [key: string]: FilterOptions }>({})
+    const [appliedFilters, setAppliedFilters] = useState<{ [key: string]: { options: FilterOptions; value: any } }>({})
 
-    // Add a filter
-    const addFilter = (category: string, value: string) => {
-        if (category && value) {
-            setAppliedFilters([...appliedFilters, { category, value }])
-            setCurrentFilterCategory('')
-            setCurrentFilterValue('')
-            setIsFilterDialogOpen(false)
-        }
+    useEffect(() => {
+        loadFilters()
+    }, [])
+
+    const loadFilters = async () => {
+        let configuration: Configuration = new Configuration({
+            basePath: 'https://ane.coflnet.com'
+        })
+        const api = new FilterApi(configuration)
+        const options = await api.getOptions()
+        setFilterOptions(options)
+        console.log(options)
     }
 
-    // Remove a filter
-    const removeFilter = (index: number) => {
-        const newFilters = [...appliedFilters]
-        newFilters.splice(index, 1)
-        setAppliedFilters(newFilters)
+    const addFilter = (key: string, filterOptions: FilterOptions, value: any) => {
+        setAppliedFilters({
+            ...appliedFilters,
+            [key]: {
+                options: filterOptions,
+                value: getFilterElementValueForDisplay(filterOptions.filterType!, filterOptions.options!, value)
+            }
+        })
+        setCurrentFilterToAdd(undefined)
+        setIsFilterDialogOpen(false)
     }
 
-    const handlePriceRangeChange = (values: number[]) => {
-        setPriceRange(values)
-
-        const priceFilterIndex = appliedFilters.findIndex(filter => filter.category === 'Price Range')
-        const newFilters = [...appliedFilters]
-        const priceFilterValue = `$${values[0]} - $${values[1]}`
-
-        if (priceFilterIndex >= 0) {
-            newFilters[priceFilterIndex] = { category: 'Price Range', value: priceFilterValue }
-        } else {
-            newFilters.push({ category: 'Price Range', value: priceFilterValue })
-        }
-
+    const removeFilter = (key: string) => {
+        const newFilters = { ...appliedFilters }
+        delete newFilters[key]
         setAppliedFilters(newFilters)
     }
 
@@ -72,7 +59,6 @@ export default function ItemSearch() {
             </CardHeader>
             <CardContent>
                 <div className="flex flex-col gap-4">
-                    {/* Search Bar */}
                     <div className="flex w-full items-center space-x-2">
                         <div className="relative flex-1">
                             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -87,7 +73,6 @@ export default function ItemSearch() {
                         <Button type="submit">Search</Button>
                     </div>
 
-                    {/* Filter Controls */}
                     <div className="flex flex-wrap gap-2 items-center">
                         <Dialog open={isFilterDialogOpen} onOpenChange={setIsFilterDialogOpen}>
                             <DialogTrigger asChild>
@@ -96,7 +81,7 @@ export default function ItemSearch() {
                                     Add Filter
                                 </Button>
                             </DialogTrigger>
-                            <DialogContent className="bg-background">
+                            <DialogContent className="bg-background" style={{ maxHeight: 'calc(100vh - 200px)' }}>
                                 <DialogHeader>
                                     <DialogTitle>Add Filter</DialogTitle>
                                     <DialogDescription>Select a filter category and value to narrow your search results.</DialogDescription>
@@ -105,58 +90,44 @@ export default function ItemSearch() {
                                 <div className="grid gap-4 py-4">
                                     <div className="grid gap-2">
                                         <Label htmlFor="filter-category">Filter Category</Label>
-                                        <Select value={currentFilterCategory} onValueChange={setCurrentFilterCategory}>
+                                        <Select
+                                            value={currentFilterToAdd?.key}
+                                            onValueChange={newValue => {
+                                                setCurrentFilterToAdd({ key: newValue, options: filterOptions[newValue], value: '' })
+                                            }}
+                                        >
                                             <SelectTrigger id="filter-category" className="bg-background">
                                                 <SelectValue placeholder="Select category" />
                                             </SelectTrigger>
                                             <SelectContent className="bg-background">
-                                                {filterCategories.map(category => (
-                                                    <SelectItem key={category.name} value={category.name}>
-                                                        {category.name}
-                                                    </SelectItem>
-                                                ))}
+                                                {Object.keys(filterOptions).map(key => {
+                                                    return (
+                                                        <SelectItem key={key} value={key}>
+                                                            {key}
+                                                        </SelectItem>
+                                                    )
+                                                })}
                                             </SelectContent>
                                         </Select>
                                     </div>
-
-                                    {currentFilterCategory && (
-                                        <div className="grid gap-2">
-                                            {currentFilterCategory === 'Price Range' ? (
-                                                <div className="space-y-4">
-                                                    <Label>
-                                                        Price Range: ${priceRange[0]} - ${priceRange[1]}
-                                                    </Label>
-                                                    <Slider
-                                                        defaultValue={[0, 1000]}
-                                                        max={5000}
-                                                        step={10}
-                                                        value={priceRange}
-                                                        onValueChange={setPriceRange}
-                                                        className="py-4"
-                                                    />
-                                                </div>
-                                            ) : (
-                                                <>
-                                                    <Label htmlFor="filter-value">Filter Value</Label>
-                                                    <Select value={currentFilterValue} onValueChange={setCurrentFilterValue}>
-                                                        <SelectTrigger id="filter-value" className="bg-background">
-                                                            <SelectValue placeholder="Select value" />
-                                                        </SelectTrigger>
-                                                        <SelectContent className="bg-background">
-                                                            {filterCategories
-                                                                .find(c => c.name === currentFilterCategory)
-                                                                ?.options?.map(option => (
-                                                                    <SelectItem key={option} value={option}>
-                                                                        {option}
-                                                                    </SelectItem>
-                                                                ))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                </>
-                                            )}
-                                        </div>
-                                    )}
                                 </div>
+
+                                {currentFilterToAdd && (
+                                    <div className="grid gap-2 overflow-scroll" style={{ maxHeight: 'calc(40vh)' }}>
+                                        <FilterElement
+                                            key={currentFilterToAdd.key}
+                                            label={currentFilterToAdd.key}
+                                            filterType={currentFilterToAdd.options.filterType}
+                                            options={currentFilterToAdd.options.options!}
+                                            onValueChange={newValue => {
+                                                let current = { ...currentFilterToAdd }
+                                                current.value = newValue
+
+                                                setCurrentFilterToAdd(current)
+                                            }}
+                                        />
+                                    </div>
+                                )}
 
                                 <DialogFooter>
                                     <Button variant="outline" onClick={() => setIsFilterDialogOpen(false)}>
@@ -164,76 +135,37 @@ export default function ItemSearch() {
                                     </Button>
                                     <Button
                                         onClick={() => {
-                                            if (currentFilterCategory === 'Price Range') {
-                                                handlePriceRangeChange(priceRange)
-                                                setIsFilterDialogOpen(false)
-                                            } else {
-                                                addFilter(currentFilterCategory, currentFilterValue)
-                                            }
+                                            addFilter(currentFilterToAdd!.key, currentFilterToAdd!.options, currentFilterToAdd!.value)
+                                            setIsFilterDialogOpen(false)
                                         }}
-                                        disabled={currentFilterCategory === '' || (currentFilterCategory !== 'Price Range' && currentFilterValue === '')}
+                                        disabled={!currentFilterToAdd}
                                     >
                                         Add Filter
                                     </Button>
                                 </DialogFooter>
                             </DialogContent>
                         </Dialog>
-
-                        {/* Quick Filters Dropdown */}
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="outline" className="gap-1">
-                                    <ChevronDown className="h-4 w-4" />
-                                    Quick Filters
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent className="w-56 bg-background">
-                                <DropdownMenuLabel>Filter By</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-
-                                {filterCategories.map(category => (
-                                    <DropdownMenuSub key={category.name}>
-                                        <DropdownMenuSubTrigger>
-                                            <span>{category.name}</span>
-                                        </DropdownMenuSubTrigger>
-                                        <DropdownMenuPortal>
-                                            <DropdownMenuSubContent className="bg-background">
-                                                {category.type === 'range' ? (
-                                                    <DropdownMenuItem onClick={() => setIsFilterDialogOpen(true)}>Set Price Range</DropdownMenuItem>
-                                                ) : (
-                                                    category.options?.map(option => (
-                                                        <DropdownMenuItem key={option} onClick={() => addFilter(category.name, option)}>
-                                                            {option}
-                                                        </DropdownMenuItem>
-                                                    ))
-                                                )}
-                                            </DropdownMenuSubContent>
-                                        </DropdownMenuPortal>
-                                    </DropdownMenuSub>
-                                ))}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
                     </div>
 
-                    {/* Applied Filters */}
-                    {appliedFilters.length > 0 && (
+                    {Object.keys(appliedFilters).length > 0 && (
                         <div className="flex flex-wrap gap-2 mt-2">
-                            {appliedFilters.map((filter, index) => (
-                                <Badge key={index} variant="secondary" className="gap-1 px-3 py-1">
-                                    <span>
-                                        {filter.category}: {filter.value}
-                                    </span>
-                                    <Button variant="ghost" size="icon" className="h-4 w-4 p-0 ml-1" onClick={() => removeFilter(index)}>
-                                        <X className="h-3 w-3" />
-                                        <span className="sr-only">Remove filter</span>
-                                    </Button>
-                                </Badge>
-                            ))}
-                            {appliedFilters.length > 0 && (
-                                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setAppliedFilters([])}>
-                                    Clear All
-                                </Button>
-                            )}
+                            {Object.keys(appliedFilters).map(key => {
+                                const filter = appliedFilters[key]
+                                return (
+                                    <Badge key={key} variant="secondary" className="gap-1 px-3 py-1">
+                                        <span>
+                                            {key}: {filter.value.toString()}
+                                        </span>
+                                        <Button variant="ghost" size="icon" className="h-4 w-4 p-0 ml-1" onClick={() => removeFilter(key)}>
+                                            <X className="h-3 w-3" />
+                                            <span className="sr-only">Remove filter</span>
+                                        </Button>
+                                    </Badge>
+                                )
+                            })}
+                            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setAppliedFilters({})}>
+                                Clear All
+                            </Button>
                         </div>
                     )}
                 </div>
@@ -241,46 +173,3 @@ export default function ItemSearch() {
         </Card>
     )
 }
-
-// Filter categories and options
-const filterCategories = [
-    {
-        name: 'Category',
-        options: [
-            'Electronics',
-            'Clothing',
-            'Home & Garden',
-            'Toys',
-            'Sporting Goods',
-            'Automotive',
-            'Collectibles',
-            'Health & Beauty',
-            'Jewelry',
-            'Business & Industrial'
-        ]
-    },
-    {
-        name: 'Condition',
-        options: ['New', 'Used', 'Refurbished', 'For parts or not working']
-    },
-    {
-        name: 'Price Range',
-        type: 'range'
-    },
-    {
-        name: 'Item Location',
-        options: ['US Only', 'North America', 'Europe', 'Asia', 'Worldwide']
-    },
-    {
-        name: 'Seller',
-        options: ['Top Rated', 'eBay Store', 'Individual Seller']
-    },
-    {
-        name: 'Shipping Options',
-        options: ['Free Shipping', 'Local Pickup', 'Expedited', 'International Shipping']
-    },
-    {
-        name: 'Buying Format',
-        options: ['Auction', 'Buy It Now', 'Best Offer', 'Classified Ads']
-    }
-]
